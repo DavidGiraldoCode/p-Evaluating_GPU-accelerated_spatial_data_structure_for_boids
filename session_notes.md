@@ -39,13 +39,13 @@ $$n$$ Boids count, with Sebastian's CPU collision avoidance, no spatial data str
 | 1000  |   ~100    |
 | 10000 |     ~9    |
 
-Obstacle avoidance is definitely a bottle neck
+Obstacle avoidance is definitely a bottleneck.
 
 *Boid-based obstacle avoidance, "ObstacleProbe"*
-Base line 6 colliders as walls.
+Baseline 6 colliders as walls.
 
 $$n$$ Boids count, with 60 boid-based obstacle probes in CPU, 1920x1080
-Boid leaks (not memory leak tho XD), can be seen at $$n = 1000$$.
+Many Boid leaks (not memory leaks, tho, XD) can be seen at $$n = 1000$$.
 
 $$n$$ Boids count, with 60 manually placed boid-based obstacle probes, computing forces in GPU, no spatial data structure 
 
@@ -55,15 +55,17 @@ $$n$$ Boids count, with 60 manually placed boid-based obstacle probes, computing
 | 1000  |    ~ 50   |
 | 10000 |     ~ 2   |
 
-**Side-by-side comparisson CPU orginal (right), GPU(left)**
+**Side-by-side comparison CPU original (right), GPU(left)**
 <div style="display: flex; justify-content: space-around;">
-    <img src="Assets/Images/GPU_boid_based_1000_gif.gif" alt="CPU_no_grid" width="45%">
+    <img src="Assets/Images/CPU_origina_1000_gif.gif" alt="CPU_no_grid" width="45%">
     <img src="Assets/Images/GPU_boid_based_1000_gif.gif" alt="GPU_no_grid" width="45%">
 </div>
+*The red spheres on the yellow arc are the manually placed probes.
 
 ### Updates - Adding Voxelization
 
 - Added Acerola's voxelizer to the scene.
+<img src="Assets/Images/Voxelized_original_scene.png" alt="voxelized scene" width="100%">
 
 #### Next Steps:
 - Use the positions of the voxels as static boids to create obstacles.
