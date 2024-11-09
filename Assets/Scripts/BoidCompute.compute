@@ -16,10 +16,10 @@ struct Boid {
 };
 
 RWStructuredBuffer<Boid> boids;
-RWStructuredBuffer<float3> obstacles;
+//RWStructuredBuffer<float3> obstacles;
 
 int numBoids;
-int numObstacles;
+//int numObstacles;
 
 float viewRadius;
 float avoidRadius;
@@ -52,7 +52,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                     boids[id.x].separationHeading -= offset / sqrDst;
                 }
             }
-            
+            /*
             for(int i_obs = 0; i_obs < numObstacles; i_obs++)
             {
                 float3 boidToObstacle = obstacles[i_obs] - boids[id.x].position;
@@ -64,7 +64,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                     boids[id.x].obstaclesSeparationHeading -= boidToObstacle/sqrDistToObs;
                 }
             }
-        
+            */
 
         }
     }

@@ -121,8 +121,8 @@ public class Boid : MonoBehaviour
         //acceleration += ApplyObstacleAvoidanceForce();
         if(numPerceivedObstacles > 0)
         {
-            var obstacleSeperationForce = SteerTowards(avgObstacleAvoidanceHeading) * settings.amplitud/*settings.seperateWeight*/;
-            acceleration += obstacleSeperationForce;
+            //var obstacleSeperationForce = SteerTowards(avgObstacleAvoidanceHeading) * settings.amplitud/*settings.seperateWeight*/;
+            //acceleration += obstacleSeperationForce;
         }
 
         velocity += acceleration * Time.deltaTime;
