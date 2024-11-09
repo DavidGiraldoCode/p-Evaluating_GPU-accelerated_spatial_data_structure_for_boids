@@ -31,12 +31,12 @@ public class BoidManager : MonoBehaviour
         {
 
             int numBoids = boids.Length;
-            int numObstacleProbes = obstacleBoids.Length;
+            //int numObstacleProbes = obstacleBoids.Length;
 
             // 1. array for the boids
             var boidData = new BoidData[numBoids];
             // 1.1 array for the boid-based obstacles, just positions;
-            var obstacleData = new Vector3[numObstacleProbes];
+            //var obstacleData = new Vector3[numObstacleProbes];
 
             for (int i = 0; i < boids.Length; i++)
             {
@@ -44,24 +44,24 @@ public class BoidManager : MonoBehaviour
                 boidData[i].direction = boids[i].forward;
             }
 
-            for (int i = 0; i < obstacleBoids.Length; i++)
-            {
-                obstacleData[i] = obstacleBoids[i].position;
-            }
+            // for (int i = 0; i < obstacleBoids.Length; i++)
+            // {
+            //     obstacleData[i] = obstacleBoids[i].position;
+            // }
 
             // 2. Buffer for the GPU
             var boidBuffer = new ComputeBuffer(numBoids, BoidData.Size);
-            var obstacleProbesBuffer = new ComputeBuffer(numObstacleProbes, 3 * sizeof(float));
+            //var obstacleProbesBuffer = new ComputeBuffer(numObstacleProbes, 3 * sizeof(float));
 
             boidBuffer.SetData(boidData);
-            obstacleProbesBuffer.SetData(obstacleData);
+            //obstacleProbesBuffer.SetData(obstacleData);
 
             // 3. Set the buffer to the kernel i=0
             compute.SetBuffer(0, "boids", boidBuffer);
-            compute.SetBuffer(0, "obstacles", obstacleProbesBuffer);
+            //compute.SetBuffer(0, "obstacles", obstacleProbesBuffer);
 
             compute.SetInt("numBoids", boids.Length);
-            compute.SetInt("numObstacles", obstacleBoids.Length);
+            //compute.SetInt("numObstacles", obstacleBoids.Length);
             compute.SetFloat("viewRadius", settings.perceptionRadius);
             compute.SetFloat("avoidRadius", settings.avoidanceRadius);
 
@@ -84,8 +84,8 @@ public class BoidManager : MonoBehaviour
                 boids[i].avgAvoidanceHeading = boidData[i].avoidanceHeading;
                 boids[i].numPerceivedFlockmates = boidData[i].numFlockmates;
 
-                boids[i].numPerceivedObstacles = boidData[i].numObstacles;
-                boids[i].avgObstacleAvoidanceHeading = boidData[i].obstacleAvoidanceHeading;
+                //boids[i].numPerceivedObstacles = boidData[i].numObstacles;
+                //boids[i].avgObstacleAvoidanceHeading = boidData[i].obstacleAvoidanceHeading;
 
                 //*NEW Boid-based obstacel avoidance
                 //GatherObstacles(i);
@@ -95,7 +95,7 @@ public class BoidManager : MonoBehaviour
             }
 
             boidBuffer.Release();
-            obstacleProbesBuffer.Release(); //* NEW
+            //obstacleProbesBuffer.Release(); //* NEW
 
 
         }
