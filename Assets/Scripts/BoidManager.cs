@@ -54,11 +54,11 @@ public class BoidManager : MonoBehaviour
             var obstacleProbesBuffer = new ComputeBuffer(numObstacleProbes, 3 * sizeof(float));
 
             boidBuffer.SetData(boidData);
-            obstacleProbesBuffer.SetData(obstacleData);
+            //obstacleProbesBuffer.SetData(obstacleData);
 
             // 3. Set the buffer to the kernel i=0
             compute.SetBuffer(0, "boids", boidBuffer);
-            compute.SetBuffer(0, "obstacles", obstacleProbesBuffer);
+            //compute.SetBuffer(0, "obstacles", obstacleProbesBuffer);
 
             compute.SetInt("numBoids", boids.Length);
             compute.SetInt("numObstacles", obstacleBoids.Length);
@@ -74,6 +74,7 @@ public class BoidManager : MonoBehaviour
             // 5. Gets data back from the GPU. Recall this is a thread-blocking accion.
             // The main thread will be stopped until the data returns and is read
             boidBuffer.GetData(boidData);
+            //obstacleProbesBuffer.GetData(obstacleData); //* NEW
 
             // 6. Updates the boid in the CPU
             for (int i = 0; i < boids.Length; i++)
@@ -83,8 +84,8 @@ public class BoidManager : MonoBehaviour
                 boids[i].avgAvoidanceHeading = boidData[i].avoidanceHeading;
                 boids[i].numPerceivedFlockmates = boidData[i].numFlockmates;
 
-                boids[i].numPerceivedObstacles = boidData[i].numObstacles;
-                boids[i].avgObstacleAvoidanceHeading = boidData[i].obstacleAvoidanceHeading;
+                //boids[i].numPerceivedObstacles = boidData[i].numObstacles;
+                //boids[i].avgObstacleAvoidanceHeading = boidData[i].obstacleAvoidanceHeading;
 
                 //*NEW Boid-based obstacel avoidance
                 //GatherObstacles(i);
@@ -94,6 +95,7 @@ public class BoidManager : MonoBehaviour
             }
 
             boidBuffer.Release();
+            //obstacleProbesBuffer.Release(); //* NEW
 
 
         }
@@ -109,7 +111,7 @@ public class BoidManager : MonoBehaviour
 
             if (sqrDist < (criticalDistance * criticalDistance))
             {
-                Debug.DrawLine(boids[boidIndex].position, boids[boidIndex].position + BoidToObstacle, Color.red);
+                //Debug.DrawLine(boids[boidIndex].position, boids[boidIndex].position + BoidToObstacle, Color.red);
                 boids[boidIndex].numPerceivedObstacles += 1;
 
                 //Normalized Boid-To-Obstacle vector

@@ -55,7 +55,6 @@ MonoBehaviour:
   avgObstacleAvoidanceHeading: {x: 0, y: 0, z: 0}
   numPerceivedObstacles: 0
   radialAttenuation: 0
-  amplitud: 12.64
 --- !u!1001 &4154384415608217699
 PrefabInstance:
   m_ObjectHideFlags: 0

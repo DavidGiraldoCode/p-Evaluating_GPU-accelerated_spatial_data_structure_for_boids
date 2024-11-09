@@ -121,8 +121,8 @@ public class Boid : MonoBehaviour
         //acceleration += ApplyObstacleAvoidanceForce();
         if(numPerceivedObstacles > 0)
         {
-            var obstacleSeperationForce = SteerTowards(avgObstacleAvoidanceHeading) * settings.amplitud/*settings.seperateWeight*/;
-            acceleration += obstacleSeperationForce;
+            //var obstacleSeperationForce = SteerTowards(avgObstacleAvoidanceHeading) * settings.amplitud/*settings.seperateWeight*/;
+            //acceleration += obstacleSeperationForce;
         }
 
         velocity += acceleration * Time.deltaTime;
@@ -188,12 +188,12 @@ public class Boid : MonoBehaviour
     Vector3 ApplyObstacleAvoidanceForce()
     {
         Vector3 obstacleSeperationForce = new Vector3(0, 0, 0);
-        Debug.Log("numPerceivedObstacles: " + numPerceivedObstacles);
+        //Debug.Log("numPerceivedObstacles: " + numPerceivedObstacles);
         if (numPerceivedObstacles != 0)
         {
             
             obstacleSeperationForce = SteerTowards(avgObstacleAvoidanceHeading) * settings.amplitud/*settings.seperateWeight*/;
-            Debug.DrawLine(position, position + obstacleSeperationForce, Color.green);
+            //Debug.DrawLine(position, position + obstacleSeperationForce, Color.green);
 
             return obstacleSeperationForce;
             //numPerceivedObstacles = 0;
