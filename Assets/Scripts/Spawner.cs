@@ -2,6 +2,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Spawns `n` number of boid inside a unit scale scaled by a scalar value to increase the spawn redius.
+/// Then we assing a random direction the boid using the unit sphere again.
+/// </summary>
 public class Spawner : MonoBehaviour {
 
     public enum GizmoType { Never, SelectedOnly, Always }

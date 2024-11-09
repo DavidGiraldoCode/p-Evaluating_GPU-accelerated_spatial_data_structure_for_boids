@@ -1,6 +1,7 @@
 ﻿#pragma kernel CSMain
 static const int threadGroupSize = 1024;
 
+// Simplified version of the boid
 struct Boid {
     float3 position;
     float3 direction;
@@ -16,21 +17,31 @@ int numBoids;
 float viewRadius;
 float avoidRadius;
 
+/**
+*  @brief For each thread, traverse the buffer array, counting how many boid are within range (distance check)
+*  Then, if within range, increase the neighbour
+*  Add the position of that neighbour to the flockCentre accumulator
+*  Add the direction of that neighbour to the flockHeading accumulator
+*  Also, check for neighbour that are too close (avoidRadius)
+*  Add the inverse direction where the neighbour is
+*/
 [numthreads(threadGroupSize,1,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
     for (int indexB = 0; indexB < numBoids; indexB ++) {
-        if (id.x != indexB) {
+        if (id.x != indexB) { // Avoid computing with it self
             Boid boidB = boids[indexB];
-            float3 offset = boidB.position - boids[id.x].position;
+            float3 offset = boidB.position - boids[id.x].position; // Distance between the current boid and other boid
             float sqrDst = offset.x * offset.x + offset.y * offset.y + offset.z * offset.z;
 
-            if (sqrDst < viewRadius * viewRadius) {
-                boids[id.x].numFlockmates += 1;
+            if (sqrDst < viewRadius * viewRadius) { // If it is within range
+                // Accumulates the data on the current working thread, while iterate on the buffer.
+                boids[id.x].numFlockmates += 1;     // Acounted as relevant fro the steering forces average
                 boids[id.x].flockHeading += boidB.direction;
                 boids[id.x].flockCentre += boidB.position;
 
                 if (sqrDst < avoidRadius * avoidRadius) {
+                    // Normalizes the direction where the neighbour is, and inver the direction for avoidance
                     boids[id.x].separationHeading -= offset / sqrDst;
                 }
             }

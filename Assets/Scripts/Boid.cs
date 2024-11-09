@@ -2,9 +2,15 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Updates the simulation of the Boid, steering forces of cohession, separation and alignment.
+/// Constanly checks for obstacles in front, and computes a random save route for scape
+/// </summary>
 public class Boid : MonoBehaviour {
 
     BoidSettings settings;
+    //* Testing
+    public bool hasObstacleAvoidance = false;
 
     // State
     [HideInInspector]
@@ -15,12 +21,28 @@ public class Boid : MonoBehaviour {
 
     // To update:
     Vector3 acceleration;
+
+    /// <summary>
+    /// GPU driven variable, updated by the Compute shader
+    /// </summary>
     [HideInInspector]
     public Vector3 avgFlockHeading;
+
+    /// <summary>
+    /// GPU driven variable, updated by the Compute shader
+    /// </summary>
     [HideInInspector]
     public Vector3 avgAvoidanceHeading;
+
+    /// <summary>
+    /// GPU driven variable, updated by the Compute shader
+    /// </summary>
     [HideInInspector]
     public Vector3 centreOfFlockmates;
+
+    /// <summary>
+    /// GPU driven variable, updated by the Compute shader
+    /// </summary>
     [HideInInspector]
     public int numPerceivedFlockmates;
 
@@ -41,7 +63,7 @@ public class Boid : MonoBehaviour {
         position = cachedTransform.position;
         forward = cachedTransform.forward;
 
-        float startSpeed = (settings.minSpeed + settings.maxSpeed) / 2;
+        float startSpeed = (settings.minSpeed + settings.maxSpeed) / 2; // At half
         velocity = transform.forward * startSpeed;
     }
 
@@ -58,22 +80,24 @@ public class Boid : MonoBehaviour {
             Vector3 offsetToTarget = (target.position - position);
             acceleration = SteerTowards (offsetToTarget) * settings.targetWeight;
         }
+        
 
-        if (numPerceivedFlockmates != 0) {
+        if (numPerceivedFlockmates != 0) { // GPU driven variable
             centreOfFlockmates /= numPerceivedFlockmates;
 
-            Vector3 offsetToFlockmatesCentre = (centreOfFlockmates - position);
+            Vector3 offsetToFlockmatesCentre = (centreOfFlockmates - position); // GPU driven variable
 
-            var alignmentForce = SteerTowards (avgFlockHeading) * settings.alignWeight;
-            var cohesionForce = SteerTowards (offsetToFlockmatesCentre) * settings.cohesionWeight;
-            var seperationForce = SteerTowards (avgAvoidanceHeading) * settings.seperateWeight;
+            var alignmentForce = SteerTowards (avgFlockHeading) * settings.alignWeight; // GPU driven variable
+            var cohesionForce = SteerTowards (offsetToFlockmatesCentre) * settings.cohesionWeight; 
+            var seperationForce = SteerTowards (avgAvoidanceHeading) * settings.seperateWeight; // GPU driven variable
 
             acceleration += alignmentForce;
             acceleration += cohesionForce;
             acceleration += seperationForce;
         }
 
-        if (IsHeadingForCollision ()) {
+        //* Testing hasObstacleAvoidance
+        if (hasObstacleAvoidance && IsHeadingForCollision ()) {
             Vector3 collisionAvoidDir = ObstacleRays ();
             Vector3 collisionAvoidForce = SteerTowards (collisionAvoidDir) * settings.avoidCollisionWeight;
             acceleration += collisionAvoidForce;
@@ -93,12 +117,23 @@ public class Boid : MonoBehaviour {
 
     bool IsHeadingForCollision () {
         RaycastHit hit;
+        // Casts a sphere along a ray and returns detailed information on what was hit.
+        // bool True when the sphere sweep intersects any collider, otherwise false.
+        // Meaning for every boid, and for every collider in the scene, thus O(n*m) `n` boids and `m` colliders. Thinking that boids
+        // Have no collider, other wize, it becomes O(n^2).
+
+        // Recall: A Layer mask that is used to selectively ignore colliders when casting a capsule.
         if (Physics.SphereCast (position, settings.boundsRadius, forward, out hit, settings.collisionAvoidDst, settings.obstacleMask)) {
             return true;
         } else { }
         return false;
     }
 
+    /// <summary>
+    /// Returns a direction where is save to fly
+    /// Complexity O(n*m) n = number of rays (300), m = number of colliders in the scene
+    /// </summary>
+    /// <returns></returns>
     Vector3 ObstacleRays () {
         Vector3[] rayDirections = BoidHelper.directions;
 
