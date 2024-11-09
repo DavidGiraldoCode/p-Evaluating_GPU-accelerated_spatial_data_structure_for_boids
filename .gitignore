@@ -61,3 +61,25 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
+# macOS-specific files
+.DS_Store
+*.DS_Store
+
+# Thumbnail cache files created by macOS Finder
+._*
+
+# Files that store Spotlight metadata for folders and files
+.Spotlight-V100
+.Trashes
+
+# Directories potentially created on remote AFP share
+.AppleDouble
+
+
+#Windows extra files:
+.vsconfig
+UpgradeLog.htm
+UpgradeLog2.htm
+
+.vscode
+
