@@ -45,18 +45,19 @@ Obstacle avoidance is definitely a bottle neck
 Base line 6 colliders as walls.
 
 $$n$$ Boids count, with 60 boid-based obstacle probes in CPU, 
+1920x1080
 *With boid leaks (not memory leak tho XD)
 
-| $$n$$ |   fps     |
-|:===== |:=====     |
-| 100   |   ~ 125   |
-| 1000  |    ~ 60   |
-| 10000 |     ~ 5   |
+| $$n$$ |   fps    |
+|:===== |:=====    |
+| 100   |   ~ 300  |
+| 1000  |   ~ 110  |
+| 10000 |     ~ 8  |
 
 $$n$$ Boids count, with 60 boid-based obstacle probes in GPU, 
 
 | $$n$$ |   fps     |
 |:===== |:=====     |
-| 100   |   ~ 130   |
-| 1000  |    ~ 40   |
+| 100   |   ~ 285   |
+| 1000  |    ~ 50   |
 | 10000 |     ~ 2   |
