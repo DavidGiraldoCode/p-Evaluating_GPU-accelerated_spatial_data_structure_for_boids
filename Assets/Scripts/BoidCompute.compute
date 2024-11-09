@@ -9,11 +9,18 @@ struct Boid {
     float3 flockHeading;
     float3 flockCentre;
     float3 separationHeading;
-    int numFlockmates;
+    float3 obstaclesSeparationHeading; //NEW
+
+    int numFlockmates; 
+    int numDetectedObstacles; // NEW
 };
 
 RWStructuredBuffer<Boid> boids;
+RWStructuredBuffer<float3> obstacles;
+
 int numBoids;
+int numObstacles;
+
 float viewRadius;
 float avoidRadius;
 
@@ -45,6 +52,19 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                     boids[id.x].separationHeading -= offset / sqrDst;
                 }
             }
+
+            for(int i_obs = 0; i_obs < numObstacles; i_obs++)
+            {
+                float3 boidToObstacle = obstacles[i_obs] - boids[id.x].position;
+                float  sqrDistToObs   =  boidToObstacle.x * boidToObstacle.x + boidToObstacle.y * boidToObstacle.y + boidToObstacle.z * boidToObstacle.z;
+                float  criticalDistance = 1.5f;
+                if(sqrDistToObs < criticalDistance * criticalDistance)
+                {
+                    boids[id.x].numDetectedObstacles += 1;
+                    boids[id.x].obstaclesSeparationHeading -= boidToObstacle/sqrDistToObs;
+                }
+            }
+
         }
     }
 }

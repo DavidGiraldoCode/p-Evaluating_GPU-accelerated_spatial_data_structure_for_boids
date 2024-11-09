@@ -23,4 +23,7 @@ public class BoidSettings : ScriptableObject {
     public float avoidCollisionWeight = 10;
     public float collisionAvoidDst = 5;
 
+     [Header ("New Obstacle Avoidance")]
+     public float amplitud = 0.0f;
+
 }

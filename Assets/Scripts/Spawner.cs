@@ -11,7 +11,7 @@ public class Spawner : MonoBehaviour {
     public enum GizmoType { Never, SelectedOnly, Always }
 
     public Boid prefab;
-    public float spawnRadius = 10;
+    public float spawnRadius = 10; // Sebastian's orignal value 2.37
     public int spawnCount = 10;
     public Color colour;
     public GizmoType showSpawnRegion;

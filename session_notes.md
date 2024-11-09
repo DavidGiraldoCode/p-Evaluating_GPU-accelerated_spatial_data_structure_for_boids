@@ -28,8 +28,8 @@ $$n$$ Boids count, with collision avoidance
 | $$n$$ |   fps     |
 |:===== |:=====     |
 | 100   |   ~350    |
-| 1000  |   ~90     |
-| 10000 |   ~5      |
+| 1000  |    ~90    |
+| 10000 |     ~5    |
 
 $$n$$ Boids count, without collision avoidance
 
@@ -37,6 +37,24 @@ $$n$$ Boids count, without collision avoidance
 |:===== |:=====     |
 | 100   |   ~450    |
 | 1000  |   ~150    |
-| 10000 |   ~15     |
+| 10000 |    ~15    |
 
 Obstacle avoidance is definitely a bottle neck
+
+## Boid-based obstacle avoidance, "ObstacleProbe"
+
+$$n$$ Boids count, with 60 boid-based obstacle probes in CPU, 
+
+| $$n$$ |   fps     |
+|:===== |:=====     |
+| 100   |   ~100    |
+| 1000  |    ~18    |
+| 10000 |     ~1    |
+
+$$n$$ Boids count, with 60 boid-based obstacle probes in GPU, 
+
+| $$n$$ |   fps     |
+|:===== |:=====     |
+| 100   |   ~150    |
+| 1000  |    ~40    |
+| 10000 |     ~2    |
