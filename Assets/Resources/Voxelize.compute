@@ -21,6 +21,8 @@ RWStructuredBuffer<int> _StaticVoxels;
 RWStructuredBuffer<int> _PingVoxels;
 
 RWStructuredBuffer<int> _ObstaclesCounterVoxels; // Voxels that counte how many obstacle probes they have inside
+StructuredBuffer<float3> _ObstacleProbesPositions; // A buffer containing the position of all the obstacle probes.
+uint _ObstacleProbesCount;
 
 StructuredBuffer<float3> _MeshVertices;
 StructuredBuffer<int> _MeshTriangleIndices;
@@ -285,6 +287,20 @@ void CS_HashObstaclesInGrid(uint id: SV_DISPATCHTHREADID)
     if( 0 <= id.x && id.x < _VoxelCount)
     {
         // Testing, add 1 to all voxels
-        _ObstaclesCounterVoxels[id.x] = 10;
+        //_ObstaclesCounterVoxels[id.x] = 1;
+
+        _ObstaclesCounterVoxels[id.x] = 0;
+        for(uint o = 0; o < _ObstacleProbesCount; o ++)
+        {
+            // Map obstacle positions to grid space
+            //_ObstacleProbesPositions[o]
+            float3 probePos = _ObstacleProbesPositions[o]  % (_BoundsExtent * 2.0);
+            probePos.xz += _BoundsExtent.xz; 
+            probePos /= _BoundsExtent * 2;
+            probePos *= _VoxelResolution;
+            
+            _ObstaclesCounterVoxels[to1D(probePos)] += 5;
+            //if(id.x == to1D(probePos));
+        }
     }
 }

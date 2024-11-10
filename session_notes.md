@@ -77,3 +77,6 @@ $$n$$ Boids count, with 60 manually placed boid-based obstacle probes, computing
 - Where is the hash table stored?
 - How many supporting data structures do we need to book-keep the obstacles?
 - What needs to be sent to the GPU, and how many times?
+
+### 📌 IMPORTANT
+- ALWAY keep track of what information the GPU needs. The GPU know nothing about the CPU world. I was constantly trying to hash a buffer with vector that I never set

@@ -52,7 +52,9 @@ public class Voxelizer : MonoBehaviour
     private ComputeBuffer staticVoxelsBuffer, smokeVoxelsBuffer, smokePingVoxelsBuffer, argsBuffer;
 
     //* Define a buffer to store how many obstacle there are inside a voxel
-    private ComputeBuffer obstacleCountAtVoxel;
+    private ComputeBuffer obstacleCountAtVoxel, obstacleProbesPositions;
+    [Tooltip("Passes the total obstacle count to the voxelizer")]
+    public BoidSettings settings;
 
     private ComputeShader voxelizeCompute;
     private Material debugVoxelMaterial;
@@ -144,13 +146,6 @@ public class Voxelizer : MonoBehaviour
         // are being process by one processor
         voxelizeCompute.Dispatch(0, Mathf.CeilToInt(totalVoxels / 128.0f), 1, 1);
 
-        //* Instantiating obstacles
-        obstacleCountAtVoxel = new ComputeBuffer(totalVoxels, sizeof(int));
-        //* Counting
-        voxelizeCompute.SetInt("_VoxelCount", totalVoxels);
-        voxelizeCompute.SetBuffer(7, "_ObstaclesCounterVoxels", obstacleCountAtVoxel);
-        voxelizeCompute.Dispatch(7, Mathf.CeilToInt(totalVoxels / 128.0f), 1, 1);
-
         // Precompute voxelized representation of the scene
         ComputeBuffer verticesBuffer, trianglesBuffer;
 
@@ -227,6 +222,21 @@ public class Voxelizer : MonoBehaviour
         //kernel CS_RayAABBIntersection //6
         voxelizeCompute.SetBuffer(6, "_Voxels", smokeVoxelsBuffer);
 
+        //* Instantiating obstacles
+        obstacleCountAtVoxel = new ComputeBuffer(totalVoxels, sizeof(int));
+        obstacleProbesPositions = new ComputeBuffer((int)settings.totalObstacleCount, sizeof(float) * 3);
+        obstacleProbesPositions.SetData(settings.obstaclePositions);
+
+        //* Counting, pass all the values needed for computing the location
+        voxelizeCompute.SetVector("_VoxelResolution", new Vector3(voxelsX, voxelsY, voxelsZ));
+        voxelizeCompute.SetVector("_BoundsExtent", boundsExtent);
+        voxelizeCompute.SetInt("_ObstacleProbesCount", (int)settings.totalObstacleCount);
+        voxelizeCompute.SetInt("_VoxelCount", totalVoxels); // The values we need at this stage
+        voxelizeCompute.SetBuffer(7, "_ObstaclesCounterVoxels", obstacleCountAtVoxel);
+        voxelizeCompute.SetBuffer(7, "_ObstacleProbesPositions", obstacleProbesPositions);
+
+        voxelizeCompute.Dispatch(7, Mathf.CeilToInt(totalVoxels / 128.0f), 1, 1);
+
         // Debug instancing args
         argsBuffer = new ComputeBuffer(1, 5 * sizeof(uint), ComputeBufferType.IndirectArguments);
         uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
@@ -264,6 +274,7 @@ public class Voxelizer : MonoBehaviour
 
 
             debugVoxelMaterial.SetBuffer("_ObstaclesCounterVoxels", obstacleCountAtVoxel);
+            debugVoxelMaterial.SetInt("_ObstacleProbesCount", (int)settings.totalObstacleCount);
             //debugVoxelMaterial.SetBuffer("_Voxels", smokeVoxelsBuffer);
 
             debugVoxelMaterial.SetVector("_VoxelResolution", new Vector3(voxelsX, voxelsY, voxelsZ));
@@ -293,6 +304,7 @@ public class Voxelizer : MonoBehaviour
 
         //* Deallocating memory
         obstacleCountAtVoxel.Release();
+        obstacleProbesPositions.Release();
     }
 
 

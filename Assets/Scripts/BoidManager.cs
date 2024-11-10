@@ -20,8 +20,14 @@ public class BoidManager : MonoBehaviour
             b.Initialize(settings, null);
         }
 
-        //Gather all the obstacles
+        //Gather all the obstacles and passes the total and the positions to a List
         obstacleBoids = FindObjectsOfType<ObstacleBoid>();
+        settings.totalObstacleCount = (uint)obstacleBoids.Length;
+        settings.obstaclePositions.Clear();
+        foreach (ObstacleBoid o in obstacleBoids)
+        {
+            settings.obstaclePositions.Add(o.gameObject.transform.position);
+        }
 
     }
 
