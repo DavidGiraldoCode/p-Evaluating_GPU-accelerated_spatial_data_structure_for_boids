@@ -10,12 +10,17 @@
 #pragma kernel CS_QueryPosition // 5
 #pragma kernel CS_RayAABBIntersections //6
 
+// New Hashing obstacles
+#pragma kernel CS_HashObstaclesInGrid //7
+
 // The buffers are send on each frame every time we want to use the voxel grid in some way
 // They just represent an array of ints
 RWStructuredBuffer<int> _Voxels;
 RWStructuredBuffer<int> _SmokeVoxels;
 RWStructuredBuffer<int> _StaticVoxels;
 RWStructuredBuffer<int> _PingVoxels;
+
+RWStructuredBuffer<int> _ObstaclesCounterVoxels; // Voxels that counte how many obstacle probes they have inside
 
 StructuredBuffer<float3> _MeshVertices;
 StructuredBuffer<int> _MeshTriangleIndices;
@@ -269,5 +274,17 @@ void CS_RayAABBIntersections(uint id : SV_DISPATCHTHREADID)
     if (0 <= id.x && id.x < _VoxelCount)
     {
 
+    }
+}
+
+
+// Counts how many obstacle probes there are in the current voxel
+[numthreads(128,1,1)]
+void CS_HashObstaclesInGrid(uint id: SV_DISPATCHTHREADID)
+{
+    if( 0 <= id.x && id.x < _VoxelCount)
+    {
+        // Testing, add 1 to all voxels
+        _ObstaclesCounterVoxels[id.x] = 10;
     }
 }

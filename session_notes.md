@@ -70,3 +70,10 @@ $$n$$ Boids count, with 60 manually placed boid-based obstacle probes, computing
 #### Next Steps:
 - Use the positions of the voxels as static boids to create obstacles.
 - Implement spatial hashing
+
+## Session 2024-11-10: Hashing obstacles at build time
+
+**Objective and questions:** Spatially hash the obstacle probes and shade the voxels by the number of obstacles they contain.
+- Where is the hash table stored?
+- How many supporting data structures do we need to book-keep the obstacles?
+- What needs to be sent to the GPU, and how many times?

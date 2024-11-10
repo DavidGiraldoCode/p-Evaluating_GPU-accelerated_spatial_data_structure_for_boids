@@ -50,6 +50,10 @@ public class Voxelizer : MonoBehaviour
 
     #region GPGPU buffers
     private ComputeBuffer staticVoxelsBuffer, smokeVoxelsBuffer, smokePingVoxelsBuffer, argsBuffer;
+
+    //* Define a buffer to store how many obstacle there are inside a voxel
+    private ComputeBuffer obstacleCountAtVoxel;
+
     private ComputeShader voxelizeCompute;
     private Material debugVoxelMaterial;
     private Bounds debugBounds;
@@ -134,11 +138,18 @@ public class Voxelizer : MonoBehaviour
         // Clear buffer, set the staticVoxelsBuffer to be the _Voxels inside the i=0 kernel
         // that just iterates and set all the voxels to `0`
         voxelizeCompute.SetBuffer(0, "_Voxels", staticVoxelsBuffer);
-
+        
         // Sends the compute shader to the GPU, to run the kernel i=0
         // 128 is the number of thread per thread group, which detemine roughly how many voxels
         // are being process by one processor
         voxelizeCompute.Dispatch(0, Mathf.CeilToInt(totalVoxels / 128.0f), 1, 1);
+
+        //* Instantiating obstacles
+        obstacleCountAtVoxel = new ComputeBuffer(totalVoxels, sizeof(int));
+        //* Counting
+        voxelizeCompute.SetInt("_VoxelCount", totalVoxels);
+        voxelizeCompute.SetBuffer(7, "_ObstaclesCounterVoxels", obstacleCountAtVoxel);
+        voxelizeCompute.Dispatch(7, Mathf.CeilToInt(totalVoxels / 128.0f), 1, 1);
 
         // Precompute voxelized representation of the scene
         ComputeBuffer verticesBuffer, trianglesBuffer;
@@ -250,6 +261,9 @@ public class Voxelizer : MonoBehaviour
         {
             debugVoxelMaterial.SetBuffer("_StaticVoxels", staticVoxelsBuffer);
             debugVoxelMaterial.SetBuffer("_SmokeVoxels", smokeVoxelsBuffer);
+
+
+            debugVoxelMaterial.SetBuffer("_ObstaclesCounterVoxels", obstacleCountAtVoxel);
             //debugVoxelMaterial.SetBuffer("_Voxels", smokeVoxelsBuffer);
 
             debugVoxelMaterial.SetVector("_VoxelResolution", new Vector3(voxelsX, voxelsY, voxelsZ));
@@ -276,6 +290,9 @@ public class Voxelizer : MonoBehaviour
         smokeVoxelsBuffer.Release();
         smokePingVoxelsBuffer.Release();
         argsBuffer.Release();
+
+        //* Deallocating memory
+        obstacleCountAtVoxel.Release();
     }
 
 

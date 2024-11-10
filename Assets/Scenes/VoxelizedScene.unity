@@ -1013,16 +1013,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ee43ee58e06d40f1b430416dfe57803, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  boundsExtent: {x: 10, y: 4, z: 10}
-  voxelSize: 0.75
+  boundsExtent: {x: 10, y: 6, z: 10}
+  voxelSize: 4
   objectsToVoxelize: {fileID: 1608104806}
   intersectionBias: 0.4
-  debugMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  debugMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
   debugPointTransformQuery: {fileID: 1907435477}
   debugPointB: {fileID: 305035018}
-  debugStaticVoxels: 1
+  debugStaticVoxels: 0
   debugSmokeVoxels: 0
-  debugEdgeVoxels: 0
+  debugEdgeVoxels: 1
   maxRadius: {x: 1, y: 1, z: 1}
   growthSpeed: 1
   maxFillSteps: 16
