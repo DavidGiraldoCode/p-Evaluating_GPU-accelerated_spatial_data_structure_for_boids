@@ -81,6 +81,8 @@ $$n$$ Boids count, with 60 manually placed boid-based obstacle probes, computing
 ### 📌 IMPORTANT
 - ALWAY keep track of what information the GPU needs. The GPU know nothing about the CPU world. I was constantly trying to hash a buffer with vector that I never set.
 
+![alt text](Assets/Images/obstacles_in_voxels.png)
+
 ### Bug
 - The current state is crashing.
 - Tried to implement Pozzer's work, but the kernel crashes Unity.
