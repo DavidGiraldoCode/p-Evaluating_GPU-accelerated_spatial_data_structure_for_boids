@@ -6,6 +6,7 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 
 public class Voxelizer : MonoBehaviour
@@ -55,6 +56,15 @@ public class Voxelizer : MonoBehaviour
     private ComputeBuffer obstacleCountAtVoxel, obstacleProbesPositions;
     [Tooltip("Passes the total obstacle count to the voxelizer")]
     public BoidSettings settings;
+    public const uint MAX_OBSTACLE_PER_VOXEL = 20;
+    private ComputeBuffer pivotsTableBuffer, obstacleIndexBuffer, hashTable;
+    private int[,] pivotsTable; // Pozzer
+    // public struct HashedObstacle // Recall types cannot contain members of their own type
+    // {
+    //     public int[] real_indexes; // Is is arbitrary asigned.
+    // };
+
+    // *
 
     private ComputeShader voxelizeCompute;
     private Material debugVoxelMaterial;
@@ -140,7 +150,7 @@ public class Voxelizer : MonoBehaviour
         // Clear buffer, set the staticVoxelsBuffer to be the _Voxels inside the i=0 kernel
         // that just iterates and set all the voxels to `0`
         voxelizeCompute.SetBuffer(0, "_Voxels", staticVoxelsBuffer);
-        
+
         // Sends the compute shader to the GPU, to run the kernel i=0
         // 128 is the number of thread per thread group, which detemine roughly how many voxels
         // are being process by one processor
@@ -222,20 +232,50 @@ public class Voxelizer : MonoBehaviour
         //kernel CS_RayAABBIntersection //6
         voxelizeCompute.SetBuffer(6, "_Voxels", smokeVoxelsBuffer);
 
+        #region  Obstacle buffers
         //* Instantiating obstacles
         obstacleCountAtVoxel = new ComputeBuffer(totalVoxels, sizeof(int));
         obstacleProbesPositions = new ComputeBuffer((int)settings.totalObstacleCount, sizeof(float) * 3);
+        pivotsTableBuffer = new ComputeBuffer(totalVoxels, sizeof(int) * 3);
+        obstacleIndexBuffer = new ComputeBuffer((int)settings.totalObstacleCount, sizeof(uint));
+        hashTable = new ComputeBuffer((int)settings.totalObstacleCount, sizeof(uint));
+
         obstacleProbesPositions.SetData(settings.obstaclePositions);
+
+        pivotsTable = new int[totalVoxels,3];
+        for (uint p = 0; p < totalVoxels; p++)
+        {
+            pivotsTable[p,0] = -1;
+            pivotsTable[p,1] = -1;
+            pivotsTable[p,2] = -1;
+        }
+        pivotsTableBuffer.SetData(pivotsTable);
+
+        //obstacleHashTable.SetData(hashedObstacles);
 
         //* Counting, pass all the values needed for computing the location
         voxelizeCompute.SetVector("_VoxelResolution", new Vector3(voxelsX, voxelsY, voxelsZ));
         voxelizeCompute.SetVector("_BoundsExtent", boundsExtent);
         voxelizeCompute.SetInt("_ObstacleProbesCount", (int)settings.totalObstacleCount);
         voxelizeCompute.SetInt("_VoxelCount", totalVoxels); // The values we need at this stage
+
         voxelizeCompute.SetBuffer(7, "_ObstaclesCounterVoxels", obstacleCountAtVoxel);
         voxelizeCompute.SetBuffer(7, "_ObstacleProbesPositions", obstacleProbesPositions);
+        voxelizeCompute.SetBuffer(7, "_PivotsTableBuffer", pivotsTableBuffer);
+        voxelizeCompute.SetBuffer(7, "_ObstacleIndexBuffer", obstacleIndexBuffer);
+        voxelizeCompute.SetBuffer(7, "_HashTable", hashTable);
+
 
         voxelizeCompute.Dispatch(7, Mathf.CeilToInt(totalVoxels / 128.0f), 1, 1);
+
+
+        pivotsTableBuffer.GetData(pivotsTable);
+        for (uint p = 0; p < totalVoxels; p++)
+        {
+            Debug.Log($"Cell {p}, U = { pivotsTable[p,0] }, I = { pivotsTable[p,1] }, F = { pivotsTable[p,2] }");
+        }
+
+        #endregion  Obstacle buffers
 
         // Debug instancing args
         argsBuffer = new ComputeBuffer(1, 5 * sizeof(uint), ComputeBufferType.IndirectArguments);
@@ -274,6 +314,9 @@ public class Voxelizer : MonoBehaviour
 
 
             debugVoxelMaterial.SetBuffer("_ObstaclesCounterVoxels", obstacleCountAtVoxel);
+            debugVoxelMaterial.SetBuffer("_PivotsTableBuffer", pivotsTableBuffer);
+
+
             debugVoxelMaterial.SetInt("_ObstacleProbesCount", (int)settings.totalObstacleCount);
             //debugVoxelMaterial.SetBuffer("_Voxels", smokeVoxelsBuffer);
 
@@ -305,6 +348,9 @@ public class Voxelizer : MonoBehaviour
         //* Deallocating memory
         obstacleCountAtVoxel.Release();
         obstacleProbesPositions.Release();
+        pivotsTableBuffer.Release();
+        obstacleIndexBuffer.Release();
+        hashTable.Release();
     }
 
 

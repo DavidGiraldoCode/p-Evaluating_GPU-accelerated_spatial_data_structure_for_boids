@@ -28,3 +28,5 @@ MonoBehaviour:
   avoidCollisionWeight: 20
   collisionAvoidDst: 5
   amplitud: 10
+  totalObstacleCount: 60
+  obstaclePositions: []

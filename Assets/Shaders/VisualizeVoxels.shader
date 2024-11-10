@@ -21,6 +21,7 @@ Shader "Hidden/VisualizeVoxels" {
             StructuredBuffer<int> _SmokeVoxels;
             StructuredBuffer<int> _StaticVoxels;
 			StructuredBuffer<int> _ObstaclesCounterVoxels;
+			StructuredBuffer<int3> _PivotsTableBuffer;
 
 			int _ObstacleProbesCount;
 
@@ -66,7 +67,9 @@ Shader "Hidden/VisualizeVoxels" {
                 //i.hashCol = float3(hash(instanceID), hash(instanceID * 2), hash(instanceID * 3));
 
 				// Shading voxels depending on how dense they are in term of obstacles probes
-				float r = _ObstaclesCounterVoxels[instanceID] / 10.0;
+				//float r = _ObstaclesCounterVoxels[instanceID] / 10.0;
+				float r = _PivotsTableBuffer[instanceID].x / 10.0;
+
 				i.hashCol = float3(r, 0, 0);
 
 				return i;

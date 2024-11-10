@@ -79,4 +79,12 @@ $$n$$ Boids count, with 60 manually placed boid-based obstacle probes, computing
 - What needs to be sent to the GPU, and how many times?
 
 ### 📌 IMPORTANT
-- ALWAY keep track of what information the GPU needs. The GPU know nothing about the CPU world. I was constantly trying to hash a buffer with vector that I never set
+- ALWAY keep track of what information the GPU needs. The GPU know nothing about the CPU world. I was constantly trying to hash a buffer with vector that I never set.
+
+### Bug
+- The current state is crashing.
+- Tried to implement Pozzer's work, but the kernel crashes Unity.
+- Commented the las two fors.
+- A good thing is that the pivots usage is updating.
+
+[1] C. T. Pozzer, C. A. de Lara Pahins, and I. Heldal, “A hash table construction algorithm for spatial hashing based on linear memory,” in Proceedings of the 11th Conference on Advances in Computer Entertainment Technology, in ACE ’14. New York, NY, USA: Association for Computing Machinery, Nov. 2014, pp. 1–4. doi: 10.1145/2663806.2663862.
