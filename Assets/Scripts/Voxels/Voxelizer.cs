@@ -57,8 +57,8 @@ public class Voxelizer : MonoBehaviour
     [Tooltip("Passes the total obstacle count to the voxelizer")]
     public BoidSettings settings;
     public const uint MAX_OBSTACLE_PER_VOXEL = 20;
-    private ComputeBuffer pivotsTableBuffer, obstacleIndexBuffer, hashTable;
-    private int[,] pivotsTable; // Pozzer
+    public ComputeBuffer pivotsTableBuffer, hashedObstacleNodesBuffer;
+    private int[,] pivotsTable, hashedObstacleNodes; // Pozzer
     // public struct HashedObstacle // Recall types cannot contain members of their own type
     // {
     //     public int[] real_indexes; // Is is arbitrary asigned.
@@ -71,7 +71,7 @@ public class Voxelizer : MonoBehaviour
     private Bounds debugBounds;
 
     #endregion GPGPU buffers
-    private int voxelsX, voxelsY, voxelsZ, totalVoxels;
+    public int voxelsX, voxelsY, voxelsZ, totalVoxels;
     private float radius;
     private Vector3 smokeOrigin;
 
@@ -236,20 +236,30 @@ public class Voxelizer : MonoBehaviour
         //* Instantiating obstacles
         obstacleCountAtVoxel = new ComputeBuffer(totalVoxels, sizeof(int));
         obstacleProbesPositions = new ComputeBuffer((int)settings.totalObstacleCount, sizeof(float) * 3);
-        pivotsTableBuffer = new ComputeBuffer(totalVoxels, sizeof(int) * 3);
-        obstacleIndexBuffer = new ComputeBuffer((int)settings.totalObstacleCount, sizeof(uint));
-        hashTable = new ComputeBuffer((int)settings.totalObstacleCount, sizeof(uint));
+
+        pivotsTableBuffer = new ComputeBuffer(totalVoxels, sizeof(int) * 2);
+        hashedObstacleNodesBuffer = new ComputeBuffer((int)settings.totalObstacleCount, sizeof(int)*2);
+
+        //hashTable = new ComputeBuffer((int)settings.totalObstacleCount, sizeof(uint));
 
         obstacleProbesPositions.SetData(settings.obstaclePositions);
 
-        pivotsTable = new int[totalVoxels,3];
+        pivotsTable         = new int[totalVoxels, 2];
+        hashedObstacleNodes = new int[settings.totalObstacleCount, 2]; // Mistake, was passing the total of voxels.
+
         for (uint p = 0; p < totalVoxels; p++)
         {
-            pivotsTable[p,0] = -1;
-            pivotsTable[p,1] = -1;
-            pivotsTable[p,2] = -1;
+            pivotsTable[p,0] = 0;  // U (usage), it starts in 0
+            pivotsTable[p,1] = -1; // T (top), the obstacle on top of the stack
         }
+        for (uint ob = 0; ob < settings.totalObstacleCount; ob++) // Mistake, was passing the total of voxels.
+        {
+            hashedObstacleNodes[ob, 0] = -1; // V (voxel) where the obstacle is hash
+            hashedObstacleNodes[ob, 1] = -1; // N (next) the index of the obstacle behind on the stack, the first-in is -1
+        }
+
         pivotsTableBuffer.SetData(pivotsTable);
+        hashedObstacleNodesBuffer.SetData(hashedObstacleNodes);
 
         //obstacleHashTable.SetData(hashedObstacles);
 
@@ -262,18 +272,24 @@ public class Voxelizer : MonoBehaviour
         voxelizeCompute.SetBuffer(7, "_ObstaclesCounterVoxels", obstacleCountAtVoxel);
         voxelizeCompute.SetBuffer(7, "_ObstacleProbesPositions", obstacleProbesPositions);
         voxelizeCompute.SetBuffer(7, "_PivotsTableBuffer", pivotsTableBuffer);
-        voxelizeCompute.SetBuffer(7, "_ObstacleIndexBuffer", obstacleIndexBuffer);
-        voxelizeCompute.SetBuffer(7, "_HashTable", hashTable);
+        voxelizeCompute.SetBuffer(7, "_HashedObstacleNodes", hashedObstacleNodesBuffer);
+        //voxelizeCompute.SetBuffer(7, "_HashTable", hashTable);
+
+        // I was dispatching the same number of threadgroups as if they were voxels, now I am calculating the distribution with the amount of obstacles
+        voxelizeCompute.Dispatch(7, Mathf.CeilToInt((int)settings.totalObstacleCount / 128.0f), 1, 1);
+
+        Debug.Log("Dispatch kernel ID=7 to hash the obstacle");
+
+        //pivotsTableBuffer.GetData(pivotsTable);
+        //hashedObstacleNodesBuffer.GetData(hashedObstacleNodes);
 
 
-        voxelizeCompute.Dispatch(7, Mathf.CeilToInt(totalVoxels / 128.0f), 1, 1);
+        //for (uint j = 0; j < (int)settings.totalObstacleCount; j++)
+        //{
+            //Debug.Log($"Cell {p}, Usage (u) = { pivotsTable[p,0] }, Top (top of the stack) = { pivotsTable[p,1] }");
+           // Debug.Log($"Cell {j}, Voxel (v) = { hashedObstacleNodes[j,0] }, Next (down in the stack) = { hashedObstacleNodes[j,1] }");
 
-
-        pivotsTableBuffer.GetData(pivotsTable);
-        for (uint p = 0; p < totalVoxels; p++)
-        {
-            Debug.Log($"Cell {p}, U = { pivotsTable[p,0] }, I = { pivotsTable[p,1] }, F = { pivotsTable[p,2] }");
-        }
+        //}
 
         #endregion  Obstacle buffers
 
@@ -349,8 +365,8 @@ public class Voxelizer : MonoBehaviour
         obstacleCountAtVoxel.Release();
         obstacleProbesPositions.Release();
         pivotsTableBuffer.Release();
-        obstacleIndexBuffer.Release();
-        hashTable.Release();
+        hashedObstacleNodesBuffer.Release();
+        //hashTable.Release();
     }
 
 

@@ -68,8 +68,8 @@ Shader "Hidden/VisualizeVoxels" {
 
 				// Shading voxels depending on how dense they are in term of obstacles probes
 				//float r = _ObstaclesCounterVoxels[instanceID] / 10.0;
-				float r = _PivotsTableBuffer[instanceID].x / 10.0;
-
+				float r = _PivotsTableBuffer[instanceID].x / 100.0;
+				
 				i.hashCol = float3(r, 0, 0);
 
 				return i;

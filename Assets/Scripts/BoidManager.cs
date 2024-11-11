@@ -8,9 +8,12 @@ public class BoidManager : MonoBehaviour
     const int threadGroupSize = 1024;
 
     public BoidSettings settings;
+    private Voxelizer _voxelizer;
     public ComputeShader compute;
     Boid[] boids;
     ObstacleBoid[] obstacleBoids;
+
+    private ComputeBuffer obstacleProbesBuffer, pivotsTableBuffer;
 
     void Start()
     {
@@ -29,7 +32,37 @@ public class BoidManager : MonoBehaviour
             settings.obstaclePositions.Add(o.gameObject.transform.position);
         }
 
+        obstacleProbesBuffer = new ComputeBuffer(obstacleBoids.Length, 3 * sizeof(float));
+        obstacleProbesBuffer.SetData(settings.obstaclePositions);
+
+        _voxelizer = FindAnyObjectByType<Voxelizer>();
+
+        pivotsTableBuffer = _voxelizer.pivotsTableBuffer; // This is pass by references, both point to the same space in GPU memory
+        int[,] pivotsTable = new int[_voxelizer.totalVoxels, 2];
+        pivotsTableBuffer.GetData(pivotsTable);
+
+        for (uint p = 0; p < _voxelizer.totalVoxels; p++)
+        {
+            Debug.Log($"In Boid Manager Cell {p}, Usage (u) = {pivotsTable[p, 0]}, Top (top of the stack) = {pivotsTable[p, 1]}");
+        }
+
+        ComputeBuffer h = _voxelizer.hashedObstacleNodesBuffer; // This is pass by references, both point to the same space in GPU memory
+        int[,] ha = new int[settings.totalObstacleCount, 2];
+        h.GetData(ha);
+         for (uint i = 0; i < settings.totalObstacleCount; i++)
+        {
+            Debug.Log($"In Boid Manager Obstacle node {i}, Voxel (v location) = {ha[i, 0]}, Next (the next in the stack) = {ha[i, 1]}");
+        }
+
+
+
+        compute.SetBuffer(1, "_PivotsTableBuffer", _voxelizer.pivotsTableBuffer);
+        compute.SetBuffer(1, "_HashedObstacleNodes", _voxelizer.hashedObstacleNodesBuffer);
+        compute.SetBuffer(1, "obstacles", obstacleProbesBuffer);
+        compute.SetVector("_BoundsExtent", _voxelizer.boundsExtent);
+        compute.SetVector("_VoxelResolution", new Vector3(_voxelizer.voxelsX, _voxelizer.voxelsY, _voxelizer.voxelsZ));
     }
+
 
     void Update()
     {
@@ -77,9 +110,15 @@ public class BoidManager : MonoBehaviour
             int threadGroups = Mathf.CeilToInt(numBoids / (float)threadGroupSize);
             compute.Dispatch(0, threadGroups, 1, 1);
 
+
+            compute.SetBuffer(1, "boids", boidBuffer);
+            compute.Dispatch(1, threadGroups, 1, 1); // CS_ObstacleAvoidance
+
             // 5. Gets data back from the GPU. Recall this is a thread-blocking accion.
             // The main thread will be stopped until the data returns and is read
             boidBuffer.GetData(boidData);
+
+
             //obstacleProbesBuffer.GetData(obstacleData); //* NEW
 
             // 6. Updates the boid in the CPU
@@ -90,7 +129,8 @@ public class BoidManager : MonoBehaviour
                 boids[i].avgAvoidanceHeading = boidData[i].avoidanceHeading;
                 boids[i].numPerceivedFlockmates = boidData[i].numFlockmates;
 
-                //boids[i].numPerceivedObstacles = boidData[i].numObstacles;
+                boids[i].numPerceivedObstacles = boidData[i].numDetectedObstacles;
+                //Debug.Log($" boids[i].numPerceivedObstacles: {boids[i].numPerceivedObstacles}");
                 //boids[i].avgObstacleAvoidanceHeading = boidData[i].obstacleAvoidanceHeading;
 
                 //*NEW Boid-based obstacel avoidance
@@ -132,6 +172,11 @@ public class BoidManager : MonoBehaviour
         }
     }
 
+    private void OnDisable()
+    {
+        obstacleProbesBuffer.Release();
+    }
+
     /// <summary>
     /// Create the simply version of the boid to sent to the GPU
     /// </summary>
@@ -146,7 +191,7 @@ public class BoidManager : MonoBehaviour
         public Vector3 obstacleAvoidanceHeading; //* NEW
 
         public int numFlockmates;
-        public int numObstacles; //* NEW
+        public int numDetectedObstacles; //* NEW
 
         // Computes the stride of this struct
         public static int Size

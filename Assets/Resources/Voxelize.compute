@@ -29,7 +29,9 @@ uint _ObstacleProbesCount;
 // {
 //     uint real_indexes[20]; // Is is arbitrary asigned.
 // };
-RWStructuredBuffer<int3> _PivotsTableBuffer;
+RWStructuredBuffer<int2> _PivotsTableBuffer;
+RWStructuredBuffer<int2> _HashedObstacleNodes;
+
 RWStructuredBuffer<uint> _ObstacleIndexBuffer;
 RWStructuredBuffer<uint> _HashTable;
 // int2 obstacle_pair; obstacle_pair.x = real index, obstacle_pair.y = other obejctacle in the same voxel
@@ -292,32 +294,57 @@ void CS_RayAABBIntersections(uint id : SV_DISPATCHTHREADID)
 
 // Counts how many obstacle probes there are in the current voxel
 [numthreads(128,1,1)]
-void CS_HashObstaclesInGrid(uint id: SV_DISPATCHTHREADID)
+void CS_HashObstaclesInGrid(uint id: SV_DISPATCHTHREADID, uint3 groupID : SV_GroupID)
 {
-    if( 0 <= id.x && id.x < _VoxelCount)
+    if( 0 <= id.x && id.x < _ObstacleProbesCount)
     {
-        // Testing, add 1 to all voxels
-        //_ObstaclesCounterVoxels[id.x] = 1;
-
-        _ObstaclesCounterVoxels[id.x] = 0;
-        for(uint o = 0; o < _ObstacleProbesCount; o ++)
-        {
-            // Map obstacle positions to grid space
-            //_ObstacleProbesPositions[o]
-            float3 probePos = _ObstacleProbesPositions[o]  % (_BoundsExtent * 2.0);
+        
+            float3 probePos = _ObstacleProbesPositions[id.x]  % (_BoundsExtent * 2.0);
             probePos.xz += _BoundsExtent.xz; 
             probePos /= _BoundsExtent * 2;
             probePos *= _VoxelResolution;
 
             // 1. Compute where the probe is inside the voxel grid, mapped to 1D
             uint voxel_index = to1D(probePos);
+            
+            //! IMPORTANT Direct increment operations (+=) are not thread-safe when multiple threads target the same memory location.
+            /*
+            _PivotsTableBuffer[voxel_index].x += 1; 
+            do not work as expected because increment operations are not atomic. 
+            When multiple threads try to increment the same value at the same time, a race condition occurs. 
+            The result is that the value often stays the same or updates inconsistently.
+            */
+            //* This HLSL ansure safe access to the memory when multiple threads try to write
+            InterlockedAdd(_PivotsTableBuffer[voxel_index].x, 1); // Atomic operations
+
+            _HashedObstacleNodes[id.x].x = voxel_index;
+            _HashedObstacleNodes[id.x].y = _PivotsTableBuffer[voxel_index].y; // Recording the previos obstacle, before uptdating.
+            
+            //_PivotsTableBuffer[voxel_index].y = id.x; // The initial value is -1
+            int original;
+            InterlockedExchange(_PivotsTableBuffer[voxel_index].y, id.x, original); // Writes id.x only if no other writes occurred at the same time
+            
+    }
+}
+
+/*
+// Testing, add 1 to all voxels
+        //_ObstaclesCounterVoxels[id.x] = 1;
+        //uint o = id.x;
+        //_ObstaclesCounterVoxels[id.x] = 0;
+        // for(uint o = 0; o < _ObstacleProbesCount; o ++)
+        // {
+            // Map obstacle positions to grid space
+            //_ObstacleProbesPositions[o]
+
 
             // 2. Increase the counter at that voxel.
             // In this model, the total amount of obstacle for a voxel is fixed and arbitrarly user-defined
-            _ObstaclesCounterVoxels[voxel_index] += 1;
+            //_ObstaclesCounterVoxels[voxel_index] += 1;
 
-            _ObstacleIndexBuffer[o] = voxel_index;
-            _PivotsTableBuffer[voxel_index].x += 1;
+            //_ObstacleIndexBuffer[o] = voxel_index;
+
+//_HashedObstacleNodes[]
 
             // 3. Now the counter at that voxel is the size, so we can get an index by substracting one, getting the item added
             //uint index_in_voxel = (uint)_ObstaclesCounterVoxels[voxel_index] - 1;
@@ -327,7 +354,7 @@ void CS_HashObstaclesInGrid(uint id: SV_DISPATCHTHREADID)
             // _ObstacleHashTable[voxel_index].real_indexes[index_in_voxel] = o;
             
             //if(id.x == to1D(probePos));
-        }
+        //}
         //int accum = 0;
 
         // for(uint u = 0; u < (uint)_PivotsTableBuffer[id.x].x; u++)
@@ -344,5 +371,5 @@ void CS_HashObstaclesInGrid(uint id: SV_DISPATCHTHREADID)
 
         //     _PivotsTableBuffer[ob_i].z -= 1;
         // }
-    }
-}
+
+*/

@@ -2750,7 +2750,7 @@ PrefabInstance:
     - target: {fileID: -927199367670048503, guid: a3145daed477e4da09aac85761fd1acf,
         type: 3}
       propertyPath: m_Layer
-      value: 9
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -927199367670048503, guid: a3145daed477e4da09aac85761fd1acf,
         type: 3}
@@ -6258,6 +6258,10 @@ MonoBehaviour:
   iterateFill: 0
   constantFill: 0
   settings: {fileID: 11400000, guid: fd4bc51c395304add92e7ac263cc6d3f, type: 2}
+  voxelsX: 0
+  voxelsY: 0
+  voxelsZ: 0
+  totalVoxels: 0
   t: 1
 --- !u!1001 &1571331253
 PrefabInstance:

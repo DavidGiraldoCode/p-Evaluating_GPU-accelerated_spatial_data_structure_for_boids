@@ -49,7 +49,7 @@ public class Boid : MonoBehaviour
 
     //* NEW boid-base obstacle
     public Vector3 avgObstacleAvoidanceHeading;
-    public int numPerceivedObstacles;
+    public int numPerceivedObstacles = 0;
     public float radialAttenuation = 0.0f;
 
     // Cached
@@ -119,11 +119,14 @@ public class Boid : MonoBehaviour
 
         //* NEW boid-based obstacle
         //acceleration += ApplyObstacleAvoidanceForce();
-        if(numPerceivedObstacles > 0)
+        Debug.Log($"numPerceivedObstacles: {numPerceivedObstacles}");
+        if (numPerceivedObstacles > 0)
         {
             //var obstacleSeperationForce = SteerTowards(avgObstacleAvoidanceHeading) * settings.amplitud/*settings.seperateWeight*/;
             //acceleration += obstacleSeperationForce;
         }
+
+        
 
         velocity += acceleration * Time.deltaTime;
         float speed = velocity.magnitude;
@@ -136,7 +139,7 @@ public class Boid : MonoBehaviour
         position = cachedTransform.position;
         forward = dir;
 
-        numPerceivedObstacles = 0;
+        //numPerceivedObstacles = 0; // This number is re-set on the GPU
     }
 
     bool IsHeadingForCollision()
@@ -191,7 +194,7 @@ public class Boid : MonoBehaviour
         //Debug.Log("numPerceivedObstacles: " + numPerceivedObstacles);
         if (numPerceivedObstacles != 0)
         {
-            
+
             obstacleSeperationForce = SteerTowards(avgObstacleAvoidanceHeading) * settings.amplitud/*settings.seperateWeight*/;
             //Debug.DrawLine(position, position + obstacleSeperationForce, Color.green);
 
