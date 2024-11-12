@@ -140,13 +140,15 @@ bool IntersectsTriangleAabb(Triangle tri, AABB aabb) {
 
 // Kernes definitions -----------------------------------------------------------
 [numthreads(128,1,1)]
-void CS_Clear(uint id : SV_DISPATCHTHREADID) {
+void CS_Clear(uint id : SV_DISPATCHTHREADID, uint3 groupID : SV_GroupID) 
+{
     _Voxels[id.x] = 0;
 }
 //! use of potentially uninitialized variable (IntersectsTriangleAabb) 
 // The voxelization process is meant to happend ar compile time, not runtime
 [numthreads(128,1,1)]
-void CS_VoxelizeMesh(uint id : SV_DISPATCHTHREADID) {
+void CS_VoxelizeMesh(uint id : SV_DISPATCHTHREADID, uint3 groupID : SV_GroupID) 
+{
     [branch] //? What is branch?
     if (0 <= id.x && id.x < _VoxelCount) {
 
@@ -185,7 +187,8 @@ void CS_VoxelizeMesh(uint id : SV_DISPATCHTHREADID) {
 }
 
 [numthreads(1,1,1)]
-void CS_Seed(uint id : SV_DISPATCHTHREADID) {
+void CS_Seed(uint id : SV_DISPATCHTHREADID, uint3 groupID : SV_GroupID) 
+{
     float3 seedPos = _SmokeOrigin % _BoundsExtent;
     seedPos.xz += _BoundsExtent.xz; //original
     //seedPos.xzy -= _BoundsExtent.xzy;
@@ -197,7 +200,8 @@ void CS_Seed(uint id : SV_DISPATCHTHREADID) {
     _SmokeVoxels[to1D(seedPos)] = 1;
 }
 
-static int3 offsets[] = {
+static int3 offsets[] = 
+{
     int3(1, 0, 0),
     int3(-1, 0, 0),
     int3(0, 1, 0),
@@ -207,7 +211,8 @@ static int3 offsets[] = {
 };
 
 [numthreads(128, 1, 1)]
-void CS_FillStep(uint id : SV_DISPATCHTHREADID) {
+void CS_FillStep(uint id : SV_DISPATCHTHREADID, uint3 groupID : SV_GroupID) 
+{
     [branch]
     if (0 <= id.x && id.x < _VoxelCount) {
         int voxel = _SmokeVoxels[id.x];
@@ -253,12 +258,13 @@ void CS_FillStep(uint id : SV_DISPATCHTHREADID) {
 }
 
 [numthreads(128, 1, 1)]
-void CS_PingPong(uint id : SV_DISPATCHTHREADID) {
+void CS_PingPong(uint id : SV_DISPATCHTHREADID, uint3 groupID : SV_GroupID) 
+{
     _Voxels[id.x] = _PingVoxels[id.x];
 }
 
 [numthreads(1,1,1)]
-void CS_QueryPosition(uint id : SV_DISPATCHTHREADID)
+void CS_QueryPosition(uint id : SV_DISPATCHTHREADID, uint3 groupID : SV_GroupID)
 {
     float3 pointPos = _Point % (_BoundsExtent * 2.0);
     pointPos.xz += _BoundsExtent.xz; 
@@ -269,9 +275,9 @@ void CS_QueryPosition(uint id : SV_DISPATCHTHREADID)
 }
 
 [numthreads(1,1,1)]
-void CS_RayAABBIntersections(uint id : SV_DISPATCHTHREADID)
+void CS_RayAABBIntersections(uint id : SV_DISPATCHTHREADID, uint3 groupID : SV_GroupID)
 {
-    // GS GridSpace
+    /* GS GridSpace
     float3 rayPosGS = _RayOrigin % (_BoundsExtent * 2.0);
     rayPosGS.xz += _BoundsExtent.xz; 
     rayPosGS /= _BoundsExtent * 2;
@@ -289,23 +295,45 @@ void CS_RayAABBIntersections(uint id : SV_DISPATCHTHREADID)
     if (0 <= id.x && id.x < _VoxelCount)
     {
 
-    }
+    }*/
 }
+
+uint calcGridHash(int3 gridPos)
+{
+    int numBuckets = 2400;
+    const uint p1 = 73856093; // some large primes
+    const uint p2 = 19349663;
+    const uint p3 = 83492791;
+    int n = p1 * gridPos.x ^ p2 * gridPos.y ^ p3 * gridPos.z;
+    n %= numBuckets;
+    return n;
+}
+
 
 // Counts how many obstacle probes there are in the current voxel
 [numthreads(128,1,1)]
 void CS_HashObstaclesInGrid(uint id: SV_DISPATCHTHREADID, uint3 groupID : SV_GroupID)
 {
-    if( 0 <= id.x && id.x < _ObstacleProbesCount)
+    uint linearID = id.x + (groupID.x * 128); // Re mapping the threads id, depending on which thread group they are to asign a unique index
+    if(linearID < _ObstacleProbesCount)
     {
+    //if( 0 <= id.x && id.x < _ObstacleProbesCount)
+    //{
         
-            float3 probePos = _ObstacleProbesPositions[id.x]  % (_BoundsExtent * 2.0);
+            //float3 probePos = _ObstacleProbesPositions[id.x]  % (_BoundsExtent * 2.0); // multiple thread will get access to this
+            float3 probePos = _ObstacleProbesPositions[linearID]  % (_BoundsExtent * 2.0); // just one thread touhes this 
             probePos.xz += _BoundsExtent.xz; 
             probePos /= _BoundsExtent * 2;
             probePos *= _VoxelResolution;
 
             // 1. Compute where the probe is inside the voxel grid, mapped to 1D
+            // This may cause race conditions, since multiple obstacle can be at the same volex
             uint voxel_index = to1D(probePos);
+
+            //int3 gp = floor((_ObstacleProbesPositions[linearID] - (_BoundsExtent * -2.0))/_VoxelResolution);
+
+            //uint3 gridPos = to3D(voxel_index);
+            //uint hashCode = calcGridHash(gp);
             
             //! IMPORTANT Direct increment operations (+=) are not thread-safe when multiple threads target the same memory location.
             /*
@@ -317,12 +345,40 @@ void CS_HashObstaclesInGrid(uint id: SV_DISPATCHTHREADID, uint3 groupID : SV_Gro
             //* This HLSL ansure safe access to the memory when multiple threads try to write
             InterlockedAdd(_PivotsTableBuffer[voxel_index].x, 1); // Atomic operations
 
-            _HashedObstacleNodes[id.x].x = voxel_index;
-            _HashedObstacleNodes[id.x].y = _PivotsTableBuffer[voxel_index].y; // Recording the previos obstacle, before uptdating.
-            
-            //_PivotsTableBuffer[voxel_index].y = id.x; // The initial value is -1
             int original;
-            InterlockedExchange(_PivotsTableBuffer[voxel_index].y, id.x, original); // Writes id.x only if no other writes occurred at the same time
+            InterlockedExchange(_PivotsTableBuffer[voxel_index].y, linearID, original);
+            //int original_location;
+            //InterlockedExchange(_HashedObstacleNodes[id.x].x, voxel_index, original_location);
+            //_HashedObstacleNodes[linearID].x = voxel_index; // This has no race condiction because of the re-mapping
+            
+
+            //int v = _PivotsTableBuffer[voxel_index].x;
+
+            //_HashedObstacleNodes[linearID].y = v;// _PivotsTableBuffer[voxel_index].y;
+            //float s = 1.0 / 32.0;
+
+            //* NVIDIAS method
+            _HashedObstacleNodes[linearID].x = voxel_index;
+            _HashedObstacleNodes[linearID].y = linearID;
+
+            /*
+            //* Atomic operations in Metal
+            int original_next;
+            original_next = _HashedObstacleNodes[id.x].y; // Read current value
+            int expected_next = _PivotsTableBuffer[voxel_index].y; // The value you're trying to set
+
+            // Correct usage with 4 parameters (not 5)
+            InterlockedCompareExchange(_HashedObstacleNodes[id.x].y, expected_next, original_next, original_next);
+            */
+
+
+            //_PivotsTableBuffer[voxel_index].y = id.x; // The initial value is -1
+            //if(_PivotsTableBuffer[voxel_index].x == 1)
+            //{
+                
+               // int original;
+               // InterlockedExchange(_PivotsTableBuffer[voxel_index].y, 99, original); // Writes id.x only if no other writes occurred at the same time
+            //}
             
     }
 }

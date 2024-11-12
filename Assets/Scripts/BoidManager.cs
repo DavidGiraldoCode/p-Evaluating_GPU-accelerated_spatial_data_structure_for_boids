@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -13,7 +14,7 @@ public class BoidManager : MonoBehaviour
     Boid[] boids;
     ObstacleBoid[] obstacleBoids;
 
-    private ComputeBuffer obstacleProbesBuffer, pivotsTableBuffer;
+    private ComputeBuffer obstacleProbesBuffer, pivotsTableBuffer, pivotsTableBufferREAD_ONLY;
 
     void Start()
     {
@@ -23,19 +24,18 @@ public class BoidManager : MonoBehaviour
             b.Initialize(settings, null);
         }
 
-        //Gather all the obstacles and passes the total and the positions to a List
-        obstacleBoids = FindObjectsOfType<ObstacleBoid>();
-        settings.totalObstacleCount = (uint)obstacleBoids.Length;
-        settings.obstaclePositions.Clear();
-        foreach (ObstacleBoid o in obstacleBoids)
+        
+        _voxelizer = FindAnyObjectByType<Voxelizer>();
+
+        obstacleProbesBuffer = _voxelizer.obstacleProbesPositions;
+        Vector3[] obProbes = new Vector3[settings.totalObstacleCount];
+        obstacleProbesBuffer.GetData(obProbes);
+
+        for (int i = 0; i < settings.totalObstacleCount; i++)
         {
-            settings.obstaclePositions.Add(o.gameObject.transform.position);
+            Debug.Log($"obstacleProbesBuffer {i} world pos: {obProbes[i]}");
         }
 
-        obstacleProbesBuffer = new ComputeBuffer(obstacleBoids.Length, 3 * sizeof(float));
-        obstacleProbesBuffer.SetData(settings.obstaclePositions);
-
-        _voxelizer = FindAnyObjectByType<Voxelizer>();
 
         pivotsTableBuffer = _voxelizer.pivotsTableBuffer; // This is pass by references, both point to the same space in GPU memory
         int[,] pivotsTable = new int[_voxelizer.totalVoxels, 2];
@@ -43,24 +43,73 @@ public class BoidManager : MonoBehaviour
 
         for (uint p = 0; p < _voxelizer.totalVoxels; p++)
         {
-            Debug.Log($"In Boid Manager Cell {p}, Usage (u) = {pivotsTable[p, 0]}, Top (top of the stack) = {pivotsTable[p, 1]}");
+            Debug.Log($"In Boid Manager Cell {p}, Usage (u) = {pivotsTable[p, 0]}, Starting point = {pivotsTable[p, 1]}");
         }
 
         ComputeBuffer h = _voxelizer.hashedObstacleNodesBuffer; // This is pass by references, both point to the same space in GPU memory
         int[,] ha = new int[settings.totalObstacleCount, 2];
         h.GetData(ha);
-         for (uint i = 0; i < settings.totalObstacleCount; i++)
+        Debug.Log("Boid Manager, Unsorted List ====================================== ");
+        for (uint i = 0; i < settings.totalObstacleCount; i++)
         {
-            Debug.Log($"In Boid Manager Obstacle node {i}, Voxel (v location) = {ha[i, 0]}, Next (the next in the stack) = {ha[i, 1]}");
+            Debug.Log($"Hashed node {i}, Voxel id = {ha[i, 0]}, Obstacle id = {ha[i, 1]}");
         }
 
+        // TODO ----------------------------
+        // Convert the 2D array to a list of 1D arrays for sorting
+        List<int[]> haList = new List<int[]>((int)settings.totalObstacleCount);
 
+        for (int i = 0; i < settings.totalObstacleCount; i++)
+        {
+            haList.Add(new int[] { ha[i, 0], ha[i, 1] });
+        }
 
-        compute.SetBuffer(1, "_PivotsTableBuffer", _voxelizer.pivotsTableBuffer);
-        compute.SetBuffer(1, "_HashedObstacleNodes", _voxelizer.hashedObstacleNodesBuffer);
+        // Sort the list based on the first element of each array in descending order
+        haList.Sort((a, b) => a[0].CompareTo(b[0]));
+
+        // Copy the sorted list back to the 2D array
+        int temp = 0;
+        int startPoint = 0;
+        for (int i = 0; i < settings.totalObstacleCount; i++)
+        {
+            ha[i, 0] = haList[i][0];
+            ha[i, 1] = haList[i][1];
+
+            if(temp != ha[i, 0]) // If the voxel id has change, update
+            {
+                temp = ha[i, 0];
+                startPoint = ha[i, 1];
+                pivotsTable[temp, 1] = i;
+            }
+                
+             // The starting point index, inside the voxel, where the obstacles are
+
+        }
+        // TODO ----------------------------
+        Debug.Log("Sorted List ====================================== ");
+        for (uint i = 0; i < settings.totalObstacleCount; i++)
+        {
+            Debug.Log($"Hashed node {i}, Voxel id = {ha[i, 0]}, Obstacle id = {ha[i, 1]}");
+        }
+
+        Debug.Log("Updated pivotsTable ====================================== ");
+        for (uint p = 0; p < _voxelizer.totalVoxels; p++)
+        {
+            Debug.Log($"In Boid Manager Cell {p}, Usage (u) = {pivotsTable[p, 0]}, Starting point = {pivotsTable[p, 1]}");
+        }
+        h.SetData(ha);
+        pivotsTableBuffer.SetData(pivotsTable);
+
+        pivotsTableBufferREAD_ONLY = new ComputeBuffer(_voxelizer.totalVoxels, sizeof(int) * 2, ComputeBufferType.Default);
+        pivotsTableBufferREAD_ONLY.SetData(pivotsTable);
+
+        compute.SetBuffer(1, "_PivotsTableBuffer", pivotsTableBufferREAD_ONLY);
+        compute.SetBuffer(1, "_HashedObstacleNodes", h);
         compute.SetBuffer(1, "obstacles", obstacleProbesBuffer);
         compute.SetVector("_BoundsExtent", _voxelizer.boundsExtent);
         compute.SetVector("_VoxelResolution", new Vector3(_voxelizer.voxelsX, _voxelizer.voxelsY, _voxelizer.voxelsZ));
+
+        
     }
 
 
@@ -107,6 +156,8 @@ public class BoidManager : MonoBehaviour
             // 4. Prepares Dispatch    
             // If we had 100 boids, ceil (100 / 1024) = 1, ciel(2000 / 1024) = 2
             // We have 1 threadGroup on the X axis
+
+            //threadGroupSize = 1024;
             int threadGroups = Mathf.CeilToInt(numBoids / (float)threadGroupSize);
             compute.Dispatch(0, threadGroups, 1, 1);
 
@@ -131,7 +182,7 @@ public class BoidManager : MonoBehaviour
 
                 boids[i].numPerceivedObstacles = boidData[i].numDetectedObstacles;
                 //Debug.Log($" boids[i].numPerceivedObstacles: {boids[i].numPerceivedObstacles}");
-                //boids[i].avgObstacleAvoidanceHeading = boidData[i].obstacleAvoidanceHeading;
+                boids[i].avgObstacleAvoidanceHeading = boidData[i].obstacleAvoidanceHeading;
 
                 //*NEW Boid-based obstacel avoidance
                 //GatherObstacles(i);
@@ -174,7 +225,8 @@ public class BoidManager : MonoBehaviour
 
     private void OnDisable()
     {
-        obstacleProbesBuffer.Release();
+        //obstacleProbesBuffer.Release();
+        pivotsTableBufferREAD_ONLY.Dispose();
     }
 
     /// <summary>

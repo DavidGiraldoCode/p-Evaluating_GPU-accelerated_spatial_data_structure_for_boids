@@ -53,11 +53,12 @@ public class Voxelizer : MonoBehaviour
     private ComputeBuffer staticVoxelsBuffer, smokeVoxelsBuffer, smokePingVoxelsBuffer, argsBuffer;
 
     //* Define a buffer to store how many obstacle there are inside a voxel
-    private ComputeBuffer obstacleCountAtVoxel, obstacleProbesPositions;
+    private ObstacleBoid[] obstacleBoids;
+    private ComputeBuffer obstacleCountAtVoxel;
     [Tooltip("Passes the total obstacle count to the voxelizer")]
     public BoidSettings settings;
     public const uint MAX_OBSTACLE_PER_VOXEL = 20;
-    public ComputeBuffer pivotsTableBuffer, hashedObstacleNodesBuffer;
+    public ComputeBuffer pivotsTableBuffer, hashedObstacleNodesBuffer, obstacleProbesPositions;
     private int[,] pivotsTable, hashedObstacleNodes; // Pozzer
     // public struct HashedObstacle // Recall types cannot contain members of their own type
     // {
@@ -234,6 +235,20 @@ public class Voxelizer : MonoBehaviour
 
         #region  Obstacle buffers
         //* Instantiating obstacles
+
+        //Gather all the obstacles and passes the total and the positions to a List
+        obstacleBoids = FindObjectsOfType<ObstacleBoid>();
+        settings.totalObstacleCount = (uint)obstacleBoids.Length;
+        settings.obstaclePositions.Clear();
+        foreach (ObstacleBoid o in obstacleBoids)
+        {
+            settings.obstaclePositions.Add(o.gameObject.transform.position);
+        }
+
+        //obstacleProbesBuffer = new ComputeBuffer(obstacleBoids.Length, 3 * sizeof(float));
+        //obstacleProbesBuffer.SetData(settings.obstaclePositions);
+
+
         obstacleCountAtVoxel = new ComputeBuffer(totalVoxels, sizeof(int));
         obstacleProbesPositions = new ComputeBuffer((int)settings.totalObstacleCount, sizeof(float) * 3);
 

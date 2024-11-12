@@ -119,11 +119,11 @@ public class Boid : MonoBehaviour
 
         //* NEW boid-based obstacle
         //acceleration += ApplyObstacleAvoidanceForce();
-        Debug.Log($"numPerceivedObstacles: {numPerceivedObstacles}");
+        //Debug.Log($"numPerceivedObstacles: {numPerceivedObstacles}");
         if (numPerceivedObstacles > 0)
         {
-            //var obstacleSeperationForce = SteerTowards(avgObstacleAvoidanceHeading) * settings.amplitud/*settings.seperateWeight*/;
-            //acceleration += obstacleSeperationForce;
+            var obstacleSeperationForce = SteerTowards(avgObstacleAvoidanceHeading) * settings.amplitud/*settings.seperateWeight*/;
+            acceleration += obstacleSeperationForce;
         }
 
         

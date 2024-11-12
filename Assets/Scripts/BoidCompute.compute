@@ -21,9 +21,9 @@ RWStructuredBuffer<Boid> boids;
 
 
 // ----------------------------------------
-RWStructuredBuffer<float3> obstacles;
-RWStructuredBuffer<int2> _PivotsTableBuffer;
-RWStructuredBuffer<int2> _HashedObstacleNodes;
+StructuredBuffer<float3> obstacles; // Changed to read-only
+StructuredBuffer<int2> _PivotsTableBuffer; // Changed to read-only
+StructuredBuffer<int2> _HashedObstacleNodes; // Changed to read-only
 float3 _BoundsExtent, _VoxelResolution;
 
 
@@ -32,6 +32,11 @@ int numBoids;
 
 float viewRadius;
 float avoidRadius;
+
+// Functions that maps 3 Dimensions coordinate (i,j,k) into a 1 Dimesion (i)
+uint to1D(uint3 pos) {
+    return pos.x + pos.y * _VoxelResolution.x + pos.z * _VoxelResolution.x * _VoxelResolution.y;
+}
 
 int hash(float3 worldPosition)
 {
@@ -91,24 +96,66 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 }
 
 [numthreads(threadGroupSize,1,1)]
-void CS_ObstacleAvoidance (uint3 id : SV_DispatchThreadID)
+void CS_ObstacleAvoidance (uint3 id : SV_DispatchThreadID, uint3 groupID : SV_GroupID)
 {
-    // Each thread ID represents a boid
-    if(0 >= id.x && id.x < numBoids)
+    uint linearID = id.x + (groupID.x * threadGroupSize);
+    if(linearID < numBoids)
     {
-       
-        int voxel_location = hash(boids[id.x].position);
-        int obstacleCountInVoxel = _PivotsTableBuffer[voxel_location].x;
-        boids[id.x].numDetectedObstacles = obstacleCountInVoxel;
-        
-        
-        if(obstacleCountInVoxel > 0) // There are obstacle in the current voxel
+        float3 pointPos = boids[linearID].position % (_BoundsExtent * 2.0);
+        pointPos.xz += _BoundsExtent.xz; 
+        pointPos /= _BoundsExtent * 2;
+        pointPos *= _VoxelResolution;
+
+        uint voxel_location = to1D(pointPos);
+
+        // Using local copies to prevent re-reading issues
+        const int obstacleCountInVoxel = _PivotsTableBuffer[voxel_location].x;
+        const int obstacleStartingIndex = _PivotsTableBuffer[voxel_location].y;
+
+        if(obstacleStartingIndex == -1)
         {
-            int obstacle_in_stack = _PivotsTableBuffer[voxel_location].y;
-            int next = 0;
-            
-            while(next != -1)
+            boids[linearID].numDetectedObstacles = 0;
+            return;
+        }
+        
+        
+        /*
+        he value of obstacleCountInVoxel appears correct before the loop but resets or changes within the loop is 
+        almost certainly due to a race condition or possibly undefined behavior caused by accessing and modifying shared data concurrently.
+        */
+        // Loop through based on local copies
+        for (int j = obstacleStartingIndex; j < obstacleCountInVoxel; j++)
+        {
+            uint obstacleID = (uint)_HashedObstacleNodes[j].y;
+            float3 boidToObstacle = obstacles[obstacleID] - boids[linearID].position;
+            float sqrDistToObs = dot(boidToObstacle, boidToObstacle);
+            float criticalDistance = 2.0f;
+
+            // Debug assignment to check initial read
+            //boids[linearID].numDetectedObstacles = (int)obstacles[obstacleID].x;// obstacleCountInVoxel;
+
+            if(sqrDistToObs < criticalDistance * criticalDistance)
             {
+                boids[linearID].numDetectedObstacles += 1;
+                boids[linearID].obstacleAvoidanceHeading -= boidToObstacle/sqrDistToObs;
+            }
+        }
+            
+    }
+}
+/*
+ //}
+        
+        
+
+        //if(obstacleCountInVoxel > 0) // There are obstacle in the current voxel
+        //{
+
+            //int obstacle_in_stack = _PivotsTableBuffer[voxel_location].y;
+            //int next = 0;
+            
+            //while(next != -1)
+            //{
             //     //obstacles[obstacle_in_stack]; // Getting the position of the obstacle in the voxel
 
              //    float3 boidToObstacle = obstacles[obstacle_in_stack] - boids[id.x].position;
@@ -123,8 +170,6 @@ void CS_ObstacleAvoidance (uint3 id : SV_DispatchThreadID)
 
                  //next = _HashedObstacleNodes[obstacle_in_stack].y;
                  //obstacle_in_stack = next;
-            }
-        }
-            
-    }
-}
+            //}
+        //}
+*/

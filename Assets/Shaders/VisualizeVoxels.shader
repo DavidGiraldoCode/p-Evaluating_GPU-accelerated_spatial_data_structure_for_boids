@@ -21,7 +21,7 @@ Shader "Hidden/VisualizeVoxels" {
             StructuredBuffer<int> _SmokeVoxels;
             StructuredBuffer<int> _StaticVoxels;
 			StructuredBuffer<int> _ObstaclesCounterVoxels;
-			StructuredBuffer<int3> _PivotsTableBuffer;
+			StructuredBuffer<int2> _PivotsTableBuffer;
 
 			int _ObstacleProbesCount;
 
@@ -59,7 +59,7 @@ Shader "Hidden/VisualizeVoxels" {
 				i.pos = UnityObjectToClipPos((v.vertex + float3(x, y, z)) * _VoxelSize + (_VoxelSize * 0.5f) - _BoundsExtent);
 
 				if (_DebugSmokeVoxels)
-					i.pos *= saturate(_ObstaclesCounterVoxels[instanceID]);//_SmokeVoxels[instanceID]); // 
+					i.pos *= saturate(_PivotsTableBuffer[instanceID].x);//_SmokeVoxels[instanceID]); // 
 				if (_DebugStaticVoxels)
 					i.pos *= _StaticVoxels[instanceID];
 				
@@ -68,7 +68,7 @@ Shader "Hidden/VisualizeVoxels" {
 
 				// Shading voxels depending on how dense they are in term of obstacles probes
 				//float r = _ObstaclesCounterVoxels[instanceID] / 10.0;
-				float r = _PivotsTableBuffer[instanceID].x / 100.0;
+				float r = _PivotsTableBuffer[instanceID].x / 30.0f;
 				
 				i.hashCol = float3(r, 0, 0);
 
@@ -81,7 +81,7 @@ Shader "Hidden/VisualizeVoxels" {
 
                 //return float4(0.8, 0.0 , 0.0, 0.5);
 				//return float4(i.hashCol * ndotl, 1.0f);
-				return float4(i.hashCol * ndotl, 0.1f);
+				return float4(i.hashCol * ndotl, i.hashCol.r);
 			}
 
 			ENDCG

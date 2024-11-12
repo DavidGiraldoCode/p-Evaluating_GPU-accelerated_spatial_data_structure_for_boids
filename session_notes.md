@@ -137,7 +137,13 @@ _HashedObstacleNodes<int2> { {v, n} // 0
 ```
 
 ### Learnings
-1. I was causing a race condition when traing to increment and assing some values to a buffer depending on the thread id. Had to include HLSL atomic oprations. `InterlockedAdd` and `InterlockedExchange`. When several parallel threads try to write to the same Buffer (which lives globally), the last will overwrite the work of all the others.
-2. Remember to balance the thread group at every Dispatch accordingly to the size of the problem. I was dispatching the same number of thread groups when dealing with vixels than when dealing with obstacles.
+1. I was causing a race condition when traying to increment and assing some values to a buffer depending on the thread id. Had to include HLSL atomic oprations. `InterlockedAdd` and `InterlockedExchange`. When several parallel threads try to write to the same Buffer (which lives globally), the last will overwrite the work of all the others.
+2. Remember to balance the thread group at every Dispatch accordingly to the size of the problem. I was dispatching the same number of thread groups when dealing with voxels than when dealing with obstacles.
 3. As Buffer are heap memory allocations, in Unity `C#` they live as pointer, when passed between clases, they are passed by references not by value. If `class A` instantiate the BufferA, and then passes it to `class B`, the Buffer gets pass as reference, and `class B` does not need to deallocate that resourse. `class A` should handle the destruction of the buffer.
 4. Buffer persist accross Dispatch calls. Only when `.SetData()` or `.Release()` are called, the buffers change. 
+
+## Session 2024-11-12: Sorting hashed obstacles.
+
+- The GPU handled the hashing of every obstacle, mapping it to a grid.
+- Then, the CPU gets the `hashedObstacleNodesBuffer` and sort them by the grid id.
+- The buffer is send back to the GPU.
