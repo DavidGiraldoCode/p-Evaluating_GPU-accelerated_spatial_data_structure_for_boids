@@ -1,4 +1,6 @@
 ﻿#pragma kernel CSMain
+#pragma kernel CS_ObstacleAvoidance
+
 static const int threadGroupSize = 1024;
 
 // Simplified version of the boid
@@ -9,20 +11,42 @@ struct Boid {
     float3 flockHeading;
     float3 flockCentre;
     float3 separationHeading;
-    float3 obstaclesSeparationHeading; //NEW
+    float3 obstacleAvoidanceHeading; //NEW
 
     int numFlockmates; 
     int numDetectedObstacles; // NEW
 };
 
 RWStructuredBuffer<Boid> boids;
-//RWStructuredBuffer<float3> obstacles;
+
+
+// ----------------------------------------
+StructuredBuffer<float3> obstacles; // Changed to read-only
+StructuredBuffer<int2> _PivotsTableBuffer; // Changed to read-only
+StructuredBuffer<int2> _HashedObstacleNodes; // Changed to read-only
+float3 _BoundsExtent, _VoxelResolution;
+
 
 int numBoids;
 //int numObstacles;
 
 float viewRadius;
 float avoidRadius;
+
+// Functions that maps 3 Dimensions coordinate (i,j,k) into a 1 Dimesion (i)
+uint to1D(uint3 pos) {
+    return pos.x + pos.y * _VoxelResolution.x + pos.z * _VoxelResolution.x * _VoxelResolution.y;
+}
+
+int hash(float3 worldPosition)
+{
+    float3 pos = worldPosition  % (_BoundsExtent * 2.0);
+    pos.xz += _BoundsExtent.xz; 
+    pos /= _BoundsExtent * 2;
+    pos *= _VoxelResolution;
+
+    return pos.x + pos.y * _VoxelResolution.x + pos.z * _VoxelResolution.x * _VoxelResolution.y;
+}
 
 /**
 *  @brief For each thread, traverse the buffer array, counting how many boid are within range (distance check)
@@ -52,6 +76,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
                     boids[id.x].separationHeading -= offset / sqrDst;
                 }
             }
+            //
             /*
             for(int i_obs = 0; i_obs < numObstacles; i_obs++)
             {
@@ -69,3 +94,82 @@ void CSMain (uint3 id : SV_DispatchThreadID)
         }
     }
 }
+
+[numthreads(threadGroupSize,1,1)]
+void CS_ObstacleAvoidance (uint3 id : SV_DispatchThreadID, uint3 groupID : SV_GroupID)
+{
+    uint linearID = id.x + (groupID.x * threadGroupSize);
+    if(linearID < numBoids)
+    {
+        float3 pointPos = boids[linearID].position % (_BoundsExtent * 2.0);
+        pointPos.xz += _BoundsExtent.xz; 
+        pointPos /= _BoundsExtent * 2;
+        pointPos *= _VoxelResolution;
+
+        uint voxel_location = to1D(pointPos);
+
+        // Using local copies to prevent re-reading issues
+        const int obstacleCountInVoxel = _PivotsTableBuffer[voxel_location].x;
+        const int obstacleStartingIndex = _PivotsTableBuffer[voxel_location].y;
+
+        if(obstacleStartingIndex == -1)
+        {
+            boids[linearID].numDetectedObstacles = 0;
+            return;
+        }
+        
+        
+        /*
+        he value of obstacleCountInVoxel appears correct before the loop but resets or changes within the loop is 
+        almost certainly due to a race condition or possibly undefined behavior caused by accessing and modifying shared data concurrently.
+        */
+        // Loop through based on local copies
+        for (int j = obstacleStartingIndex; j < obstacleCountInVoxel; j++)
+        {
+            uint obstacleID = (uint)_HashedObstacleNodes[j].y;
+            float3 boidToObstacle = obstacles[obstacleID] - boids[linearID].position;
+            float sqrDistToObs = dot(boidToObstacle, boidToObstacle);
+            float criticalDistance = 2.0f;
+
+            // Debug assignment to check initial read
+            //boids[linearID].numDetectedObstacles = (int)obstacles[obstacleID].x;// obstacleCountInVoxel;
+
+            if(sqrDistToObs < criticalDistance * criticalDistance)
+            {
+                boids[linearID].numDetectedObstacles += 1;
+                boids[linearID].obstacleAvoidanceHeading -= boidToObstacle/sqrDistToObs;
+            }
+        }
+            
+    }
+}
+/*
+ //}
+        
+        
+
+        //if(obstacleCountInVoxel > 0) // There are obstacle in the current voxel
+        //{
+
+            //int obstacle_in_stack = _PivotsTableBuffer[voxel_location].y;
+            //int next = 0;
+            
+            //while(next != -1)
+            //{
+            //     //obstacles[obstacle_in_stack]; // Getting the position of the obstacle in the voxel
+
+             //    float3 boidToObstacle = obstacles[obstacle_in_stack] - boids[id.x].position;
+             //    float  sqrDistToObs   =  boidToObstacle.x * boidToObstacle.x + boidToObstacle.y * boidToObstacle.y + boidToObstacle.z * boidToObstacle.z;
+            //    float  criticalDistance = 1.5f;
+                
+            //     if(sqrDistToObs < criticalDistance * criticalDistance)
+            //     {
+            //         //boids[id.x].numDetectedObstacles += 1;
+            //         //boids[id.x].obstacleAvoidanceHeading -= boidToObstacle/sqrDistToObs;
+            //     }
+
+                 //next = _HashedObstacleNodes[obstacle_in_stack].y;
+                 //obstacle_in_stack = next;
+            //}
+        //}
+*/

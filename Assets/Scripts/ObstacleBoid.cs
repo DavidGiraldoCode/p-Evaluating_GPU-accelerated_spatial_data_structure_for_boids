@@ -14,6 +14,7 @@ public class ObstacleBoid : MonoBehaviour
 
     private void Awake()
     {
+        position = transform.position;
     }
 
     private void Update()
